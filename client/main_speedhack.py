@@ -104,24 +104,37 @@ def draw_info_overlay(screen, font, nb_players):
 def main():
     global running, last_sent_time, speed, fps, player_id, players
 
-    name = input("Entrez votre pseudo: ").strip()
-    if not name:
-        name = "Joueur"
+    while True:
+        name = input("Entrez votre pseudo: ").strip()
+        if not name:
+            print("Veuillez entrer un pseudo valide.")
+            continue
 
-    try:
-        res = requests.post(f"{SERVER}/join", json={"name": name}, timeout=2)
-        if res.status_code == 403:
-            print("Serveur plein")
+        try:
+            res = requests.post(f"{SERVER}/join", json={"name": name}, timeout=2)
+            if res.status_code == 403:
+                print("Serveur plein.")
+                return
+            elif res.status_code == 409:
+                print("Ce pseudo est déjà pris. Veuillez en choisir un autre.")
+                continue
+            elif res.status_code == 400:
+                print("Nom invalide. Essayez encore.")
+                continue
+            elif res.status_code != 200:
+                print(f"Erreur inconnue : {res.status_code}")
+                continue
+
+            data = res.json()
+            player_id = data["player_id"]
+            players.update(data["players"])
+            with lock:
+                for pid, pos in players.items():
+                    pos_buffer[pid] = (float(pos["x"]), float(pos["y"]))
+            break
+        except Exception as e:
+            print(f"Erreur de connexion au serveur: {e}")
             return
-        data = res.json()
-        player_id = data["player_id"]
-        players.update(data["players"])
-        with lock:
-            for pid, pos in players.items():
-                pos_buffer[pid] = (float(pos["x"]), float(pos["y"]))
-    except Exception as e:
-        print(f"Erreur de connexion au serveur: {e}")
-        return
 
     threading.Thread(target=polling_loop, daemon=True).start()
 
@@ -143,7 +156,6 @@ def main():
 
         with lock:
             if player_id not in pos_buffer or player_id not in players:
-                # Joueur non trouvé = déco
                 print("Joueur introuvable, déconnexion.")
                 running = False
                 break
@@ -172,8 +184,10 @@ def main():
         if moved and (now - last_sent_time) > max(0.05, dt):
             res = move(nx, ny)
             if res and res.status_code == 200:
-                with lock:
-                    pos_buffer[player_id] = (nx, ny)
+                status = res.json().get("status")
+                if status == "ok":
+                    with lock:
+                        pos_buffer[player_id] = (nx, ny)
             last_sent_time = now
 
         dist = ((nx - x) ** 2 + (ny - y) ** 2) ** 0.5
@@ -191,7 +205,6 @@ def main():
 
         screen.fill((30, 30, 30))
         with lock:
-            # Nettoyage joueurs disparus
             for pid in list(pos_buffer.keys()):
                 if pid not in players:
                     del pos_buffer[pid]
@@ -201,6 +214,10 @@ def main():
                     continue
                 color = (0, 255, 0) if pid == player_id else (255, 0, 0)
                 pygame.draw.rect(screen, color, (px, py, PLAYER_SIZE, PLAYER_SIZE))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 10 , py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 30, py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 10, py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 30, py + 10, 10, 10))
                 pseudo = players[pid].get("name", f"J{pid}")
                 label = font.render(pseudo, True, (255, 255, 255))
                 screen.blit(label, (px, py - 20))
@@ -210,6 +227,7 @@ def main():
 
     leave_game()
     pygame.quit()
+
 
 
 if __name__ == "__main__":

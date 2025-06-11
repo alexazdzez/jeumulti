@@ -214,6 +214,13 @@ def main():
                     continue
                 color = (0, 255, 0) if pid == player_id else (255, 0, 0)
                 pygame.draw.rect(screen, color, (px, py, PLAYER_SIZE, PLAYER_SIZE))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 10 , py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 30, py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 10, py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 30, py + 10, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 10, py + 30, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 20, py + 30, 10, 10))
+                pygame.draw.rect(screen, (36, 46, 56), (px + 30, py + 30, 10, 10))
                 pseudo = players[pid].get("name", f"J{pid}")
                 label = font.render(pseudo, True, (255, 255, 255))
                 screen.blit(label, (px, py - 20))
